@@ -1,29 +1,35 @@
 const express = require('express');
-const cors = require('cors');
-const ytdl = require('ytdl-core');
+const axios = require('axios');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-app.use(cors());
-
-// Play Endpoint
-app.get('/play', (req, res) => {
-    const videoUrl = req.query.url; // Get YouTube video URL from query
-
-    if (!videoUrl) {
-        return res.status(400).send('YouTube URL is required');
+app.get('/extract-urls', async (req, res) => {
+    const url = req.query.url; // Query parameter se URL lena
+    if (!url) {
+        return res.status(400).send('URL is required'); // Agar URL nahi hai, toh error bhejna
     }
 
-    // Stream audio from YouTube video with low quality
-    res.setHeader('Content-Disposition', 'attachment; filename="audio.mp3"');
-    ytdl(videoUrl, {
-        quality: 'lowestaudio', // Stream the lowest audio quality
-        filter: format => format.audioBitrate !== null, // Filter for audio formats only
-    }).pipe(res);
+    try {
+        const response = await axios.get(url);
+        const html = response.data;
+
+        // URLs ko extract karne ka simple tarika
+        const regex = /href="(http[^"]+)"/g; // Href attributes se URLs nikaalne ka regex
+        const links = [];
+        let match;
+
+        while ((match = regex.exec(html)) !== null) {
+            links.push(match[1]); // URL ko links mein add karna
+        }
+
+        res.json(links); // Extracted URLs ko JSON format mein bhejna
+    } catch (error) {
+        console.error('Error:', error);
+        res.status(500).send('Error fetching the URL'); // Agar kuch error aaye toh
+    }
 });
 
-// Start the server
 app.listen(PORT, () => {
-    console.log(`Server is running on http://localhost:${PORT}`);
+    console.log(`Server is running on port ${PORT}`);
 });
