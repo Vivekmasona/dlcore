@@ -1,35 +1,31 @@
 const express = require('express');
-const axios = require('axios');
+const youtubedl = require('youtube-dl-exec');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-app.get('/extract-urls', async (req, res) => {
-    const url = req.query.url; // Query parameter se URL lena
+// Endpoint to stream audio from YouTube
+app.get('/stream', (req, res) => {
+    const { url } = req.query;
+
     if (!url) {
-        return res.status(400).send('URL is required'); // Agar URL nahi hai, toh error bhejna
+        return res.status(400).send('Please provide a YouTube URL.');
     }
 
-    try {
-        const response = await axios.get(url);
-        const html = response.data;
-
-        // URLs ko extract karne ka simple tarika
-        const regex = /href="(http[^"]+)"/g; // Href attributes se URLs nikaalne ka regex
-        const links = [];
-        let match;
-
-        while ((match = regex.exec(html)) !== null) {
-            links.push(match[1]); // URL ko links mein add karna
-        }
-
-        res.json(links); // Extracted URLs ko JSON format mein bhejna
-    } catch (error) {
-        console.error('Error:', error);
-        res.status(500).send('Error fetching the URL'); // Agar kuch error aaye toh
-    }
+    // Stream audio from YouTube
+    youtubedl(url, {
+        // Options to stream audio only
+        filter: 'audioonly',
+        format: 'bestaudio[ext=m4a]',
+        output: '-',
+    })
+    .pipe(res)
+    .on('error', (error) => {
+        console.error(error);
+        res.status(500).send('An error occurred while streaming audio.');
+    });
 });
 
 app.listen(PORT, () => {
-    console.log(`Server is running on port ${PORT}`);
+    console.log(`Server is running on http://localhost:${PORT}`);
 });
